@@ -1,520 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Birthday Quest for Tita Wheng!</title>
-    <link href="https://fonts.googleapis.com/css2?family=Short+Stack&family=Gochi+Hand&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    
-    <style>
-        :root {
-            --bg-blue: #bbd0f2;
-            --ink-blue: #0047ab;
-            --paper-cream: #fffdf5;
-            --accent-orange: #ff9d6c;
-            --soft-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            --cup-width: 80px;
-            --doc-height: 100%;
+/* --- PRANK LOGIC (30 JUMPS EDITION) --- */
+let jumpCount = 0;
+const MAX_JUMPS = 30;
+
+function initPrank() {
+    const btn = document.getElementById('prank-gate-btn');
+    const container = document.getElementById('scr-gate');
+    const instructionText = container.querySelector('p');
+
+    const jump = (e) => {
+        if (jumpCount >= MAX_JUMPS) return; // Stop jumping after 30
+
+        // Prevent clicking on mobile while jumping
+        if (e.type === 'touchstart') e.preventDefault();
+
+        // Switch to absolute positioning if not already
+        if (btn.style.position !== 'absolute') {
+            btn.style.position = 'absolute';
+            btn.style.width = '200px';
+            btn.style.zIndex = '1000';
         }
 
-        * { 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
+        // Calculate boundaries
+        const maxX = container.clientWidth - 200;
+        const maxY = container.clientHeight - 50;
+
+        // Move to random spot
+        btn.style.left = Math.max(0, Math.min(maxX, Math.random() * maxX)) + 'px';
+        btn.style.top = Math.max(0, Math.min(maxY, Math.random() * maxY)) + 'px';
+
+        jumpCount++;
+        playSound('pop');
+
+        // Funny messages based on progress
+        if (jumpCount === 5) instructionText.innerHTML = "Wait, let me move! 🏃‍♀️";
+        if (jumpCount === 10) instructionText.innerHTML = "Bilis naman ni Tita! 💨";
+        if (jumpCount === 20) {
+            instructionText.innerHTML = "Hingal na ako... konti na lang! 🥵";
+            btn.style.filter = "hue-rotate(90deg)"; // Change color to show it's "tired"
         }
+        if (jumpCount === 28) instructionText.innerHTML = "Okay, okay... last one! 🛑";
 
-        html, body {
-            height: var(--doc-height);
-            width: 100vw;
-            overflow: hidden; 
-            position: fixed;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-blue);
+        // After 30 hits, reset to clickable
+        if (jumpCount === MAX_JUMPS) {
+            btn.style.position = 'relative';
+            btn.style.left = '0';
+            btn.style.top = '0';
+            btn.style.width = '100%';
+            btn.style.filter = "none";
+            instructionText.innerHTML = "Sige na nga, click me na! ✨";
+            instructionText.style.color = "#4cd137";
         }
+    };
 
-        body {
-            font-family: 'Short Stack', cursive;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .container {
-            background: var(--paper-cream);
-            background-image: linear-gradient(rgba(0, 71, 171, 0.05) 1px, transparent 1px), 
-                              linear-gradient(90deg, rgba(0, 71, 171, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
-            width: 95%;
-            max-width: 450px;
-            height: 90%; 
-            max-height: 700px;
-            padding: 20px 20px 10px 20px;
-            border-radius: 20px;
-            box-shadow: 10px 10px 0px rgba(0, 71, 171, 0.1);
-            position: relative;
-            border: 2px solid #fff;
-            display: flex;
-            flex-direction: column;
-            margin: auto;
-        }
-
-        .header {
-            font-family: 'Gochi Hand', cursive;
-            color: var(--ink-blue);
-            font-size: clamp(1.5rem, 7vw, 2.5rem);
-            margin: 0 0 10px 0;
-            line-height: 1.1;
-            text-align: center;
-        }
-
-        .screen { 
-            display: none; 
-            flex: 1; 
-            flex-direction: column; 
-            justify-content: center; 
-            overflow: hidden;
-        }
-        
-        .active { display: flex; animation: slideUp 0.5s ease-out; }
-
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        @keyframes rotating-physics {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .slice-item { 
-            position: absolute; 
-            font-size: 2.5rem; 
-            will-change: transform, top, left; 
-            cursor: pointer;
-            z-index: 10;
-        }
-
-        /* MEMORY GAME */
-        .memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
-        .card { height: clamp(60px, 12vh, 85px); position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
-        .card.flipped { transform: rotateY(180deg); }
-        .card-front, .card-back {
-            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
-            display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 2px solid white; box-shadow: var(--soft-shadow);
-        }
-        .card-front { background: var(--bg-blue); font-size: 1.5rem; color: white; }
-        .card-back { background: white; transform: rotateY(180deg); font-size: 2rem; border-color: var(--ink-blue); }
-
-        /* SHELL GAME */
-        .dot { width: 10px; height: 10px; background: #ccc; border-radius: 50%; transition: 0.3s; }
-        .dot.active { background: var(--accent-orange); transform: scale(1.3); }
-        .dot.done { background: #4cd137; }
-
-        .shell-game-container {
-            position: relative;
-            height: 160px;
-            margin: 20px 0;
-            display: flex;
-            justify-content: center;
-            touch-action: none;
-        }
-
-        .cup-wrapper {
-            position: absolute;
-            width: var(--cup-width);
-            height: 100px;
-            bottom: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            transition: left 0.4s ease-in-out;
-        }
-
-        .cup {
-            width: 60px;
-            height: 80px;
-            background: var(--accent-orange);
-            border: 4px solid #fff;
-            border-radius: 40% 40% 10% 10%;
-            cursor: pointer;
-            z-index: 2;
-            transition: transform 0.4s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        .cup.lifted { transform: translateY(-50px); }
-
-        .ball {
-            width: 25px;
-            height: 25px;
-            background: radial-gradient(circle at 30% 30%, #ff4757, #b31e2b);
-            border-radius: 50%;
-            position: absolute;
-            bottom: 5px;
-            z-index: 1;
-            display: none;
-        }
-
-        /* AREAS */
-        #slice-area, #catcher-area { 
-            flex-grow: 1;
-            max-height: 350px;
-            background: rgba(0,0,0,0.03); 
-            border-radius: 15px; 
-            position: relative; 
-            overflow: hidden; 
-            border: 2px dashed #ddd; 
-            touch-action: none; /* Critical for drag controls */
-        }
-        
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            border: 2px solid var(--ink-blue); 
-            border-radius: 12px; 
-            font-family: inherit; 
-            font-size: 16px; 
-            margin: 5px 0; 
-            outline: none;
-            user-select: text;
-            -webkit-user-select: text;
-        }
-
-        .btn { 
-            background: var(--ink-blue); 
-            color: white; 
-            padding: 14px; 
-            border: none; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            font-family: inherit; 
-            font-size: 1rem; 
-            cursor: pointer; 
-            margin-top: 5px; 
-            transition: 0.2s; 
-            width: 100%;
-        }
-
-        .btn:active { transform: scale(0.96); }
-
-        .letter-content {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #eee;
-            overflow-y: auto;
-            line-height: 1.5;
-            color: #333;
-            font-size: 0.9rem;
-            user-select: text;
-            -webkit-user-select: text;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-            z-index: 5;
-        }
-
-        #player {
-            pointer-events: none;
-            transition: left 0.1s ease-out; 
-            position: absolute;
-            bottom: 10px;
-            font-size: 3.5rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 20;
-        }
-
-        .footer {
-            text-align: center;
-            font-size: 0.75rem;
-            color: var(--ink-blue);
-            opacity: 0.7;
-            padding-top: 15px;
-            font-family: 'Short Stack', cursive;
-        }
-        .footer i { color: #ff4757; }
-    </style>
-</head>
-<body>
-
-    <div class="container">
-        <div id="scr-gate" class="screen active">
-            <i class="ph ph-hand-waving" style="font-size: 4rem; color: var(--ink-blue); align-self: center;"></i>
-            <h2 class="header">Identity Lock</h2>
-            <p style="text-align: center;">Wait! Before we start... <br> <strong>Are you really our Tita Wheng?</strong></p>
-            <button class="btn" onclick="next('scr-auth')">Yes, it's me!</button>
-        </div>
-
-        <div id="scr-auth" class="screen">
-            <h2 class="header">Verification</h2>
-            <p id="q-text" style="font-size: 1rem; min-height: 40px; text-align: center;"></p>
-            <form onsubmit="event.preventDefault(); checkAuth();">
-                <input type="text" id="q-input" inputmode="text" placeholder="Type here..." autocomplete="off">
-                <button type="submit" style="display: none;"></button>
-            </form>
-            <button id="hint-btn" class="btn" style="display:none; background:none; color:var(--ink-blue); border:1px dashed;" onclick="showHint()">Bulong (Hint)? 🤫</button>
-            <button class="btn" onclick="checkAuth()">Verify Details</button>
-        </div>
-
-        <div id="scr-mem" class="screen">
-            <h2 class="header">Memory Match</h2>
-            <p id="mem-status" style="text-align: center; font-size: 0.9rem;">Memorize... 🕒</p>
-            <div class="memory-grid" id="mem-box"></div>
-        </div>
-
-        <div id="scr-shell" class="screen">
-            <h2 class="header">Find the Ball</h2>
-            <div id="shell-progress" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 5px;">
-                <span class="dot active" id="dot-1"></span>
-                <span class="dot" id="dot-2"></span>
-                <span class="dot" id="dot-3"></span>
-                <span class="dot" id="dot-4"></span>
-                <span class="dot" id="dot-5"></span>
-            </div>
-            <p id="shell-msg" style="text-align: center; font-weight: bold; font-size: 0.9rem;">Watch closely!</p>
-            <div class="shell-game-container" id="shell-game-box">
-                <div class="cup-wrapper" id="wrap-0" style="left: 10%;"><div class="ball" id="ball-0"></div><div class="cup" id="cup-0" onclick="guessCup(0)"></div></div>
-                <div class="cup-wrapper" id="wrap-1" style="left: 40%;"><div class="ball" id="ball-1"></div><div class="cup" id="cup-1" onclick="guessCup(1)"></div></div>
-                <div class="cup-wrapper" id="wrap-2" style="left: 70%;"><div class="ball" id="ball-2"></div><div class="cup" id="cup-2" onclick="guessCup(2)"></div></div>
-            </div>
-            <button class="btn" id="start-shell-btn" onclick="startShellRound()">Start Round 1</button>
-        </div>
-
-        <div id="scr-slice" class="screen">
-            <h2 class="header">Bake the Cake!</h2>
-            <p style="text-align: center; font-size: 0.9rem;">Slice items! <strong><span id="slice-score">0</span>/15</strong></p>
-            <div id="slice-area"></div>
-        </div>
-
-        <div id="scr-catch" class="screen">
-            <h2 class="header">Catch the Love</h2>
-            <p style="text-align: center; font-size: 0.8rem; margin: 0;">Drag the basket left and right!</p>
-            <div id="catcher-area">
-                <div id="player">🧺</div>
-            </div>
-            <p style="text-align: center; font-weight: bold; color: #ff4757; margin-top: 10px;">Love Meter: <span id="catch-score">0</span>%</p>
-        </div>
-
-        <div id="scr-reveal" class="screen">
-            <h2 class="header">Happy Birthday!</h2>
-            <div class="letter-content">
-                <p><strong>Dearest Tita Wheng,</strong></p>
-                <p>Hooray! You’ve cleared all levels! 🎉</p>
-                <p>Beyond the games, please know that you are a true "winner" in our hearts every single day. Thank you for your endless patience and for the wisdom you share.</p>
-                <p>Our wish is for you to have a year filled with good health and laughter. May all your silent prayers be answered! Enjoy your day po!</p>
-                <p style="text-align: right; margin-top: 15px; color: var(--ink-blue); font-weight: bold;">— Love,<br>Yosh and Yeyen</p>
-            </div>
-            <button class="btn" onclick="location.reload()" style="background: var(--accent-orange);">Play Again? 🔄</button>
-        </div>
-
-        <div class="footer">
-            made with <i class="ph-fill ph-heart"></i> by Yohann Nicholo Matibag
-        </div>
-    </div>
-
-    <script>
-        const setDocHeight = () => { document.documentElement.style.setProperty('--doc-height', `${window.innerHeight}px`); };
-        window.addEventListener('resize', setDocHeight);
-        setDocHeight();
-
-        function next(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'scr-auth') setupAuth();
-            if(id === 'scr-mem') setupMemory();
-            if(id === 'scr-slice') setupSlice();
-            if(id === 'scr-catch') setupCatch();
-            if(id === 'scr-reveal') startConfettiLoop();
-        }
-
-        // --- AUTH ---
-        const trivia = [
-            { q: "What is your favorite color?", a: ["blue", "asul"], h: "Starts with 'B' or 'A'!" },
-            { q: "Favorite number sa electric fan?", a: ["2", "two", "number 2"], h: "Middle speed!" },
-            { q: "What is the special day today?", a: ["birthday", "bday", "hbd"], h: "Your day!" }
-        ];
-        let currentQ = 0;
-        function setupAuth() {
-            document.getElementById('q-text').innerText = trivia[currentQ].q;
-            document.getElementById('q-input').value = "";
-            document.getElementById('q-input').focus();
-        }
-        function checkAuth() {
-            const val = document.getElementById('q-input').value.toLowerCase().trim();
-            if(trivia[currentQ].a.includes(val)) {
-                currentQ++;
-                if(currentQ < trivia.length) setupAuth();
-                else next('scr-mem');
-            } else {
-                document.getElementById('hint-btn').style.display = "block";
-                alert("Try again po! 😉");
-            }
-        }
-
-        // --- MEMORY ---
-        function setupMemory() {
-            const box = document.getElementById('mem-box');
-            box.innerHTML = '';
-            const icons = ['🎁','🎁','💖','💖','🎂','🎂','🍦','🍦','🌸','🌸','⭐','⭐'].sort(() => Math.random() - 0.5);
-            let flipped = [];
-            let matched = 0;
-            let canClick = false;
-            icons.forEach(icon => {
-                const card = document.createElement('div');
-                card.className = 'card flipped';
-                card.innerHTML = `<div class="card-front">?</div><div class="card-back">${icon}</div>`;
-                card.onclick = () => {
-                    if(!canClick || card.classList.contains('flipped') || flipped.length >= 2) return;
-                    card.classList.add('flipped');
-                    flipped.push(card);
-                    if(flipped.length === 2) {
-                        if(flipped[0].querySelector('.card-back').innerText === flipped[1].querySelector('.card-back').innerText) {
-                            matched++; flipped = [];
-                            if(matched === 6) setTimeout(() => next('scr-shell'), 800);
-                        } else {
-                            setTimeout(() => { flipped.forEach(c => c.classList.remove('flipped')); flipped = []; }, 800);
-                        }
-                    }
-                };
-                box.appendChild(card);
-            });
-            setTimeout(() => {
-                document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
-                document.getElementById('mem-status').innerText = "Find the pairs! 🔍";
-                canClick = true;
-            }, 2500);
-        }
-
-        // --- SHELL ---
-        let shellRound = 1; let isGameState = 'idle'; let ballPos = 0;
-        function startShellRound() {
-            if(isGameState !== 'idle') return;
-            isGameState = 'shuffling';
-            document.getElementById('start-shell-btn').style.visibility = 'hidden';
-            document.querySelectorAll('.cup').forEach(c => c.classList.remove('lifted'));
-            document.querySelectorAll('.ball').forEach(b => b.style.display = 'none');
-            ballPos = Math.floor(Math.random() * 3);
-            const ball = document.getElementById(`ball-${ballPos}`);
-            const cup = document.getElementById(`cup-${ballPos}`);
-            ball.style.display = 'block'; cup.classList.add('lifted');
-            setTimeout(() => { cup.classList.remove('lifted'); setTimeout(() => { ball.style.display = 'none'; runShuffle(); }, 600); }, 1200);
-        }
-        function runShuffle() {
-            let count = 0; const max = 5 + shellRound;
-            const speed = Math.max(300, 700 - (shellRound * 50));
-            const wrappers = [document.getElementById('wrap-0'), document.getElementById('wrap-1'), document.getElementById('wrap-2')];
-            const lefts = ["10%", "40%", "70%"];
-            let mapping = [0, 1, 2];
-            const interval = setInterval(() => {
-                let a = Math.floor(Math.random() * 3); let b = (a + 1) % 3;
-                [mapping[a], mapping[b]] = [mapping[b], mapping[a]];
-                mapping.forEach((posIdx, cupIdx) => { wrappers[cupIdx].style.left = lefts[posIdx]; });
-                count++;
-                if(count >= max) { clearInterval(interval); isGameState = 'guessing'; document.getElementById('shell-msg').innerText = "Nasaan ang bola?"; }
-            }, speed);
-        }
-        function guessCup(id) {
-            if(isGameState !== 'guessing') return; isGameState = 'idle';
-            const cup = document.getElementById(`cup-${id}`); cup.classList.add('lifted');
-            if(id === ballPos) {
-                document.getElementById(`ball-${id}`).style.display = 'block';
-                if(shellRound >= 5) { document.getElementById(`dot-5`).className = 'dot done'; setTimeout(() => next('scr-slice'), 1500); }
-                else {
-                    document.getElementById(`dot-${shellRound}`).className = 'dot done'; shellRound++;
-                    document.getElementById(`dot-${shellRound}`).className = 'dot active';
-                    document.getElementById('start-shell-btn').style.visibility = 'visible';
-                    document.getElementById('start-shell-btn').innerText = "Round " + shellRound;
-                }
-            } else {
-                document.getElementById(`ball-${ballPos}`).style.display = 'block'; document.getElementById(`cup-${ballPos}`).classList.add('lifted');
-                setTimeout(() => { alert("Mali po! Try again!"); document.getElementById('start-shell-btn').style.visibility = 'visible'; }, 500);
-            }
-        }
-
-        // --- SLICE ---
-        function setupSlice() {
-            const area = document.getElementById('slice-area'); let score = 0;
-            const loop = setInterval(() => {
-                if(score >= 15) { clearInterval(loop); next('scr-catch'); return; }
-                const item = document.createElement('div'); item.className = 'slice-item';
-                item.innerText = ['🍓','🥚','🍫','🍰','🥛'][Math.floor(Math.random()*5)];
-                item.style.left = (Math.random()*80 + 10) + '%'; item.style.top = '100%';
-                item.style.animation = `rotating-physics ${Math.random()*2+1}s linear infinite`;
-                area.appendChild(item);
-                let y = 300; let vy = -15;
-                const m = setInterval(() => { vy += 0.6; y += vy; item.style.top = y + 'px'; if(y > 350) { clearInterval(m); item.remove(); } }, 30);
-                const hit = (e) => { e.preventDefault(); score++; document.getElementById('slice-score').innerText = score; item.innerText = '✨'; clearInterval(m); setTimeout(()=>item.remove(), 100); };
-                item.addEventListener('touchstart', hit); item.addEventListener('mousedown', hit);
-            }, 800);
-        }
-
-        // --- UPDATED CATCH (SMOOTH DRAG) ---
-        function setupCatch() {
-            const area = document.getElementById('catcher-area');
-            const player = document.getElementById('player');
-            let score = 0;
-            let activeGame = true;
-
-            const handleMove = (e) => {
-                if (!activeGame) return;
-                const rect = area.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                // Calculate percentage relative to game area
-                let relX = ((clientX - rect.left) / rect.width) * 100;
-                // Boundary constraints
-                relX = Math.max(10, Math.min(90, relX));
-                player.style.left = relX + '%';
-            };
-
-            // Touch events for phone
-            area.addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(e); }, {passive: false});
-            area.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e); }, {passive: false});
-            // Mouse for testing on PC
-            area.addEventListener('mousemove', handleMove);
-
-            const loop = setInterval(() => {
-                if(!activeGame) return;
-                const h = document.createElement('div');
-                h.className = 'slice-item'; h.innerText = '💖';
-                h.style.left = (Math.random()*80 + 10) + '%';
-                h.style.top = '-50px';
-                area.appendChild(h);
-                
-                let y = -50;
-                const fall = setInterval(() => {
-                    if(!activeGame) { h.remove(); clearInterval(fall); return; }
-                    y += 4; h.style.top = y + 'px';
-                    
-                    const hr = h.getBoundingClientRect();
-                    const pr = player.getBoundingClientRect();
-
-                    // Collision detection
-                    if(hr.bottom > pr.top && hr.left < pr.right && hr.right > pr.left && hr.top < pr.bottom) {
-                        score += 10;
-                        document.getElementById('catch-score').innerText = score;
-                        h.remove(); clearInterval(fall);
-                        if(score >= 100) { activeGame = false; clearInterval(loop); next('scr-reveal'); }
-                    }
-                    if(y > 350) { h.remove(); clearInterval(fall); }
-                }, 20);
-            }, 900);
-        }
-
-        // --- CONFETTI ---
-        function startConfettiLoop() {
-            const end = Date.now() + (20 * 1000);
-            (function frame() {
-                confetti({ particleCount: 1, angle: 60, spread: 45, origin: { x: 0, y: 0.8 }, ticks: 250, gravity: 0.7, colors: ['#0047ab', '#ff9d6c', '#ff4757', '#ffffff'] });
-                confetti({ particleCount: 1, angle: 120, spread: 45, origin: { x: 1, y: 0.8 }, ticks: 250, gravity: 0.7, colors: ['#0047ab', '#ff9d6c', '#ff4757', '#ffffff'] });
-                if (Date.now() < end) setTimeout(() => requestAnimationFrame(frame), 120);
-            }());
-        }
-
-        function showHint() { alert("Hint: " + trivia[currentQ].h); }
-    </script>
-</body>
-</html>
+    // Listeners for both Mobile and Desktop
+    btn.addEventListener('touchstart', jump);
+    btn.addEventListener('mouseenter', jump);
+}
