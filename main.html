@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Birthday Quest for Tita Wheng!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Short+Stack&family=Gochi+Hand&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-blue: #bbd0f2;
+            --ink-blue: #0047ab;
+            --paper-cream: #fffdf5;
+            --accent-orange: #ff9d6c;
+            --soft-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            --cup-width: 80px;
+        }
+
+        /* Prevent all accidental scrolling and selection during gameplay */
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Lock the screen */
+            overscroll-behavior: none;
+            position: fixed; /* Extra lock for iOS */
+        }
+
+        body {
+            background-color: var(--bg-blue);
+            font-family: 'Short Stack', cursive;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .container {
+            background: var(--paper-cream);
+            background-image: linear-gradient(rgba(0, 71, 171, 0.05) 1px, transparent 1px), 
+                              linear-gradient(90deg, rgba(0, 71, 171, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            width: 100%;
+            max-width: 450px;
+            height: 90vh; /* Responsive height */
+            max-height: 700px;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 10px 10px 0px rgba(0, 71, 171, 0.1);
+            position: relative;
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            font-family: 'Gochi Hand', cursive;
+            color: var(--ink-blue);
+            font-size: clamp(1.8rem, 8vw, 2.5rem);
+            margin: 0 0 10px 0;
+            line-height: 1.1;
+            text-align: center;
+        }
+
+        .screen { 
+            display: none; 
+            flex: 1; 
+            flex-direction: column; 
+            justify-content: center; 
+            overflow: hidden;
+        }
+        
+        .active { display: flex; animation: slideUp 0.5s ease-out; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* MEMORY CARD */
+        .memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; perspective: 1000px; }
+        .card { height: clamp(60px, 15vh, 80px); position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .card.flipped { transform: rotateY(180deg); }
+        .card-front, .card-back {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 2px solid white; box-shadow: var(--soft-shadow);
+        }
+        .card-front { background: var(--bg-blue); font-size: 1.5rem; color: white; }
+        .card-back { background: white; transform: rotateY(180deg); font-size: 2rem; border-color: var(--ink-blue); }
+
+        /* SHELL GAME */
+        .dot { width: 10px; height: 10px; background: #ccc; border-radius: 50%; transition: 0.3s; }
+        .dot.active { background: var(--accent-orange); transform: scale(1.3); }
+        .dot.done { background: #4cd137; }
+
+        .shell-game-container {
+            position: relative;
+            height: 160px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        .cup-wrapper {
+            position: absolute;
+            width: var(--cup-width);
+            height: 100px;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .cup {
+            width: 60px;
+            height: 80px;
+            background: var(--accent-orange);
+            border: 4px solid #fff;
+            border-radius: 40% 40% 10% 10%;
+            cursor: pointer;
+            z-index: 2;
+            transition: transform 0.4s ease, filter 0.3s, left 0.5s ease-in-out;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .cup.lifted { transform: translateY(-50px); }
+
+        .ball {
+            width: 25px;
+            height: 25px;
+            background: radial-gradient(circle at 30% 30%, #ff4757, #b31e2b);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 5px;
+            z-index: 1;
+            display: none;
+        }
+
+        /* SLICER & CATCHER AREAS */
+        #slice-area, #catcher-area { 
+            flex-grow: 1;
+            max-height: 300px;
+            background: rgba(0,0,0,0.03); 
+            border-radius: 15px; 
+            position: relative; 
+            overflow: hidden; 
+            border: 2px dashed #ddd; 
+            touch-action: none; /* Prevents screen drag */
+        }
+        
+        .slice-item { 
+            position: absolute; 
+            font-size: 2.5rem; 
+            will-change: transform, top, left; 
+            cursor: pointer;
+            z-index: 10;
+        }
+        
+        input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid var(--ink-blue); 
+            border-radius: 12px; 
+            font-family: inherit; 
+            font-size: 1rem; 
+            margin: 5px 0; 
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .btn { 
+            background: var(--ink-blue); 
+            color: white; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            font-family: inherit; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            margin-top: 5px; 
+            transition: 0.2s; 
+            width: 100%;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .letter-content {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #eee;
+            overflow-y: auto;
+            line-height: 1.5;
+            color: #333;
+            font-size: 0.9rem;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        /* Specific fix for basket animation */
+        #player {
+            pointer-events: none; /* Let the container handle the touch */
+            transition: left 0.1s linear;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="scr-gate" class="screen active">
+            <i class="ph ph-hand-waving" style="font-size: 4rem; color: var(--ink-blue); align-self: center;"></i>
+            <h2 class="header">Identity Lock</h2>
+            <p style="text-align: center;">Wait! Before we start... <br> <strong>Are you really our Tita Wheng?</strong></p>
+            <button class="btn" onclick="next('scr-auth')">Yes, it's me!</button>
+        </div>
+
+        <div id="scr-auth" class="screen">
+            <h2 class="header">Verification</h2>
+            <p id="q-text" style="font-size: 1rem; min-height: 40px; text-align: center;"></p>
+            <input type="text" id="q-input" inputmode="text" placeholder="Type here...">
+            <button id="hint-btn" class="btn" style="display:none; background:none; color:var(--ink-blue); border:1px dashed;" onclick="showHint()">Bulong (Hint)? 🤫</button>
+            <button class="btn" onclick="checkAuth()">Verify Details</button>
+        </div>
+
+        <div id="scr-mem" class="screen">
+            <h2 class="header">Memory Match</h2>
+            <p id="mem-status" style="text-align: center; font-size: 0.9rem;">Memorize... 🕒</p>
+            <div class="memory-grid" id="mem-box"></div>
+        </div>
+
+        <div id="scr-shell" class="screen">
+            <h2 class="header">Find the Ball</h2>
+            <div id="shell-progress" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 5px;">
+                <span class="dot active" id="dot-1"></span>
+                <span class="dot" id="dot-2"></span>
+                <span class="dot" id="dot-3"></span>
+                <span class="dot" id="dot-4"></span>
+                <span class="dot" id="dot-5"></span>
+            </div>
+            <p id="shell-msg" style="text-align: center; font-weight: bold; font-size: 0.9rem;">Watch closely!</p>
+            <div class="shell-game-container" id="shell-game-box">
+                <div class="cup-wrapper" id="wrap-0" style="left: 10%;">
+                    <div class="ball" id="ball-0"></div>
+                    <div class="cup" id="cup-0" onclick="guessCup(0)"></div>
+                </div>
+                <div class="cup-wrapper" id="wrap-1" style="left: 40%;">
+                    <div class="ball" id="ball-1"></div>
+                    <div class="cup" id="cup-1" onclick="guessCup(1)"></div>
+                </div>
+                <div class="cup-wrapper" id="wrap-2" style="left: 70%;">
+                    <div class="ball" id="ball-2"></div>
+                    <div class="cup" id="cup-2" onclick="guessCup(2)"></div>
+                </div>
+            </div>
+            <button class="btn" id="start-shell-btn" onclick="startShellRound()">Start Round 1</button>
+        </div>
+
+        <div id="scr-slice" class="screen">
+            <h2 class="header">Bake the Cake!</h2>
+            <p style="text-align: center; font-size: 0.9rem;">Slice items! <strong><span id="slice-score">0</span>/15</strong></p>
+            <div id="slice-area"></div>
+        </div>
+
+        <div id="scr-catch" class="screen">
+            <h2 class="header">Catch the Love</h2>
+            <div id="catcher-area">
+                <div id="player" style="position: absolute; bottom: 10px; font-size: 3rem; left: 50%; transform: translateX(-50%);">🧺</div>
+            </div>
+            <p style="text-align: center; font-weight: bold; color: #ff4757; margin-top: 10px;">Love Meter: <span id="catch-score">0</span>%</p>
+        </div>
+
+        <div id="scr-reveal" class="screen">
+            <h2 class="header">Happy Birthday!</h2>
+            <div class="letter-content">
+                <p><strong>Dearest Tita Wheng,</strong></p>
+                <p>Hooray! You’ve cleared all levels! 🎉</p>
+                <p>Beyond the games, please know that you are a true "winner" in our hearts every single day. Thank you for your endless patience and for the wisdom you share.</p>
+                <p>Our wish is for you to have a year filled with good health and laughter. May all your silent prayers be answered! Enjoy your day po!</p>
+                <p style="text-align: right; margin-top: 15px; color: var(--ink-blue); font-weight: bold;">— Love,<br>Yosh and Yeyen</p>
+            </div>
+            <button class="btn" onclick="location.reload()" style="background: var(--accent-orange);">Play Again? 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        /* CORE NAVIGATION */
+        function next(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'scr-auth') setupAuth();
+            if(id === 'scr-mem') setupMemory();
+            if(id === 'scr-slice') setupSlice();
+            if(id === 'scr-catch') setupCatch();
+        }
+
+        /* AUTH LOGIC */
+        const trivia = [
+            { q: "What is your favorite color?", a: ["blue", "asul"], h: "Starts with 'B' or 'A'!" },
+            { q: "Favorite number sa electric fan?", a: ["2", "two", "number 2"], h: "Middle speed!" },
+            { q: "What is the special day today?", a: ["birthday", "bday", "hbd"], h: "Your day!" }
+        ];
+        let currentQ = 0;
+        function setupAuth() {
+            document.getElementById('q-text').innerText = trivia[currentQ].q;
+            document.getElementById('q-input').value = "";
+        }
+        function checkAuth() {
+            const val = document.getElementById('q-input').value.toLowerCase().trim();
+            if(trivia[currentQ].a.includes(val)) {
+                currentQ++;
+                if(currentQ < trivia.length) setupAuth();
+                else next('scr-mem');
+            } else {
+                document.getElementById('hint-btn').style.display = "block";
+                alert("Try again po! 😉");
+            }
+        }
+
+        /* MEMORY GAME */
+        function setupMemory() {
+            const box = document.getElementById('mem-box');
+            box.innerHTML = '';
+            const icons = ['🎁','🎁','💖','💖','🎂','🎂','🍦','🍦','🌸','🌸','⭐','⭐'].sort(() => Math.random() - 0.5);
+            let flipped = [];
+            let matched = 0;
+            let canClick = false;
+            icons.forEach(icon => {
+                const card = document.createElement('div');
+                card.className = 'card flipped';
+                card.innerHTML = `<div class="card-front">?</div><div class="card-back">${icon}</div>`;
+                card.onclick = () => {
+                    if(!canClick || card.classList.contains('flipped') || flipped.length >= 2) return;
+                    card.classList.add('flipped');
+                    flipped.push(card);
+                    if(flipped.length === 2) {
+                        if(flipped[0].querySelector('.card-back').innerText === flipped[1].querySelector('.card-back').innerText) {
+                            matched++; flipped = [];
+                            if(matched === 6) setTimeout(() => next('scr-shell'), 800);
+                        } else {
+                            setTimeout(() => { flipped.forEach(c => c.classList.remove('flipped')); flipped = []; }, 800);
+                        }
+                    }
+                };
+                box.appendChild(card);
+            });
+            setTimeout(() => {
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('flipped'));
+                document.getElementById('mem-status').innerText = "Find the pairs! 🔍";
+                canClick = true;
+            }, 2500);
+        }
+
+        /* SHELL GAME */
+        let shellRound = 1;
+        let consecutiveCorrect = 0;
+        let isGameState = 'idle';
+        let ballPos = 0;
+
+        function startShellRound() {
+            if(isGameState !== 'idle') return;
+            isGameState = 'shuffling';
+            document.getElementById('start-shell-btn').style.visibility = 'hidden';
+            
+            // Reset state
+            document.querySelectorAll('.cup').forEach(c => c.classList.remove('lifted', 'dimmed'));
+            document.querySelectorAll('.ball').forEach(b => b.style.display = 'none');
+
+            ballPos = Math.floor(Math.random() * 3);
+            const ball = document.getElementById(`ball-${ballPos}`);
+            const cup = document.getElementById(`cup-${ballPos}`);
+            
+            ball.style.display = 'block';
+            cup.classList.add('lifted');
+            
+            setTimeout(() => {
+                cup.classList.remove('lifted');
+                setTimeout(() => {
+                    ball.style.display = 'none';
+                    runShuffle();
+                }, 600);
+            }, 1200);
+        }
+
+        function runShuffle() {
+            let count = 0;
+            const max = 5 + shellRound;
+            const speed = Math.max(350, 800 - (consecutiveCorrect * 100));
+            const wrappers = [document.getElementById('wrap-0'), document.getElementById('wrap-1'), document.getElementById('wrap-2')];
+            const lefts = ["10%", "40%", "70%"];
+            let mapping = [0, 1, 2];
+
+            const interval = setInterval(() => {
+                let a = Math.floor(Math.random() * 3);
+                let b = (a + 1) % 3;
+                [mapping[a], mapping[b]] = [mapping[b], mapping[a]];
+                mapping.forEach((posIdx, cupIdx) => {
+                    wrappers[cupIdx].style.left = lefts[posIdx];
+                });
+                count++;
+                if(count >= max) {
+                    clearInterval(interval);
+                    isGameState = 'guessing';
+                    document.getElementById('shell-msg').innerText = "Nasaan ang bola?";
+                }
+            }, speed);
+        }
+
+        function guessCup(id) {
+            if(isGameState !== 'guessing') return;
+            isGameState = 'idle';
+            const cup = document.getElementById(`cup-${id}`);
+            cup.classList.add('lifted');
+            
+            if(id === ballPos) {
+                document.getElementById(`ball-${id}`).style.display = 'block';
+                consecutiveCorrect++;
+                if(shellRound >= 5) setTimeout(() => next('scr-slice'), 1500);
+                else {
+                    shellRound++;
+                    document.getElementById(`dot-${shellRound-1}`).className = 'dot done';
+                    document.getElementById(`dot-${shellRound}`).className = 'dot active';
+                    document.getElementById('start-shell-btn').style.visibility = 'visible';
+                    document.getElementById('start-shell-btn').innerText = "Round " + shellRound;
+                }
+            } else {
+                consecutiveCorrect = 0;
+                document.getElementById(`ball-${ballPos}`).style.display = 'block';
+                document.getElementById(`cup-${ballPos}`).classList.add('lifted');
+                alert("Mali po! Try again!");
+                document.getElementById('start-shell-btn').style.visibility = 'visible';
+            }
+        }
+
+        /* SLICE GAME */
+        function setupSlice() {
+            const area = document.getElementById('slice-area');
+            let score = 0;
+            const loop = setInterval(() => {
+                if(score >= 15) { clearInterval(loop); next('scr-catch'); return; }
+                const item = document.createElement('div');
+                item.className = 'slice-item';
+                item.innerText = ['🍓','🥚','🍫','🍰','🥛'][Math.floor(Math.random()*5)];
+                item.style.left = (Math.random()*80 + 10) + '%';
+                item.style.top = '100%';
+                area.appendChild(item);
+
+                let y = 300; let vy = -15;
+                const m = setInterval(() => {
+                    vy += 0.6; y += vy;
+                    item.style.top = y + 'px';
+                    if(y > 350) { clearInterval(m); item.remove(); }
+                }, 30);
+
+                const hit = () => { score++; document.getElementById('slice-score').innerText = score; item.innerText = '✨'; clearInterval(m); setTimeout(()=>item.remove(), 100); };
+                item.ontouchstart = hit;
+                item.onmousedown = hit;
+            }, 800);
+        }
+
+        /* CATCH GAME - FULLY RESPONSIVE FIX */
+        function setupCatch() {
+            const area = document.getElementById('catcher-area');
+            const player = document.getElementById('player');
+            let score = 0;
+
+            const moveHandler = (e) => {
+                if (e.cancelable) e.preventDefault();
+                const rect = area.getBoundingClientRect();
+                const x = e.touches ? e.touches[0].clientX : e.clientX;
+                let relX = ((x - rect.left) / rect.width) * 100;
+                player.style.left = Math.max(10, Math.min(90, relX)) + '%';
+            };
+
+            area.addEventListener('touchmove', moveHandler, {passive: false});
+            area.addEventListener('mousemove', moveHandler);
+
+            const loop = setInterval(() => {
+                const h = document.createElement('div');
+                h.className = 'slice-item';
+                h.innerText = '💖';
+                h.style.left = (Math.random()*80 + 10) + '%';
+                h.style.top = '-50px';
+                area.appendChild(h);
+
+                let y = -50;
+                const d = setInterval(() => {
+                    y += 5; h.style.top = y + 'px';
+                    const hr = h.getBoundingClientRect();
+                    const pr = player.getBoundingClientRect();
+                    if(hr.bottom > pr.top && hr.left < pr.right && hr.right > pr.left) {
+                        score += 10; document.getElementById('catch-score').innerText = score;
+                        h.remove(); clearInterval(d);
+                        if(score >= 100) { clearInterval(loop); confetti(); setTimeout(()=>next('scr-reveal'), 1000); }
+                    }
+                    if(y > 350) { h.remove(); clearInterval(d); }
+                }, 30);
+            }, 1000);
+        }
+
+        function showHint() { alert("Hint: " + trivia[currentQ].h); }
+    </script>
+</body>
+</html>
