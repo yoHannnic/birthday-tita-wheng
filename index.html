@@ -16,7 +16,6 @@
             --accent-orange: #ff9d6c;
             --soft-shadow: 0 8px 30px rgba(0,0,0,0.12);
             --cup-width: 80px;
-            /* Dynamic height fix for mobile browsers */
             --doc-height: 100%;
         }
 
@@ -32,7 +31,7 @@
             height: var(--doc-height);
             width: 100vw;
             overflow: hidden; 
-            position: fixed; /* Prevents "pull-to-refresh" and bounce */
+            position: fixed;
             margin: 0;
             padding: 0;
             background-color: var(--bg-blue);
@@ -61,7 +60,6 @@
             border: 2px solid #fff;
             display: flex;
             flex-direction: column;
-            /* Ensure it stays inside the viewport */
             margin: auto;
         }
 
@@ -85,6 +83,20 @@
         .active { display: flex; animation: slideUp 0.5s ease-out; }
 
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ROTATION PHYSICS */
+        @keyframes rotating-physics {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .slice-item { 
+            position: absolute; 
+            font-size: 2.5rem; 
+            will-change: transform, top, left; 
+            cursor: pointer;
+            z-index: 10;
+        }
 
         /* MEMORY CARD */
         .memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
@@ -159,21 +171,13 @@
             touch-action: none;
         }
         
-        .slice-item { 
-            position: absolute; 
-            font-size: 2.5rem; 
-            will-change: transform, top, left; 
-            cursor: pointer;
-            z-index: 10;
-        }
-        
         input { 
             width: 100%; 
             padding: 12px; 
             border: 2px solid var(--ink-blue); 
             border-radius: 12px; 
             font-family: inherit; 
-            font-size: 16px; /* Prevents iOS zoom-on-focus */
+            font-size: 16px; 
             margin: 5px 0; 
             outline: none;
             user-select: text;
@@ -208,12 +212,12 @@
             font-size: 0.9rem;
             user-select: text;
             -webkit-user-select: text;
-            -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS letter */
+            -webkit-overflow-scrolling: touch;
         }
 
         #player {
             pointer-events: none;
-            transition: left 0.1s linear;
+            transition: left 0.05s ease-out; 
         }
     </style>
 </head>
@@ -230,7 +234,16 @@
         <div id="scr-auth" class="screen">
             <h2 class="header">Verification</h2>
             <p id="q-text" style="font-size: 1rem; min-height: 40px; text-align: center;"></p>
-            <input type="text" id="q-input" inputmode="text" placeholder="Type here...">
+            
+            <form onsubmit="event.preventDefault(); checkAuth();">
+                <input type="text" id="q-input" 
+                       inputmode="text" 
+                       placeholder="Type here..." 
+                       enterkeyhint="go" 
+                       autocomplete="off">
+                <button type="submit" style="display: none;"></button>
+            </form>
+
             <button id="hint-btn" class="btn" style="display:none; background:none; color:var(--ink-blue); border:1px dashed;" onclick="showHint()">Bulong (Hint)? 🤫</button>
             <button class="btn" onclick="checkAuth()">Verify Details</button>
         </div>
@@ -311,6 +324,7 @@
             if(id === 'scr-mem') setupMemory();
             if(id === 'scr-slice') setupSlice();
             if(id === 'scr-catch') setupCatch();
+            if(id === 'scr-reveal') startConfettiLoop();
         }
 
         /* AUTH LOGIC */
@@ -323,6 +337,7 @@
         function setupAuth() {
             document.getElementById('q-text').innerText = trivia[currentQ].q;
             document.getElementById('q-input').value = "";
+            document.getElementById('q-input').focus();
         }
         function checkAuth() {
             const val = document.getElementById('q-input').value.toLowerCase().trim();
@@ -348,7 +363,7 @@
                 const card = document.createElement('div');
                 card.className = 'card flipped';
                 card.innerHTML = `<div class="card-front">?</div><div class="card-back">${icon}</div>`;
-                const flipAction = () => {
+                card.onclick = () => {
                     if(!canClick || card.classList.contains('flipped') || flipped.length >= 2) return;
                     card.classList.add('flipped');
                     flipped.push(card);
@@ -361,7 +376,6 @@
                         }
                     }
                 };
-                card.onclick = flipAction;
                 box.appendChild(card);
             });
             setTimeout(() => {
@@ -373,7 +387,6 @@
 
         /* SHELL GAME */
         let shellRound = 1;
-        let consecutiveCorrect = 0;
         let isGameState = 'idle';
         let ballPos = 0;
 
@@ -442,7 +455,7 @@
             }
         }
 
-        /* SLICE GAME */
+        /* SLICE GAME (ROTATION PHYSICS) */
         function setupSlice() {
             const area = document.getElementById('slice-area');
             let score = 0;
@@ -453,6 +466,11 @@
                 item.innerText = ['🍓','🥚','🍫','🍰','🥛'][Math.floor(Math.random()*5)];
                 item.style.left = (Math.random()*80 + 10) + '%';
                 item.style.top = '100%';
+                
+                const rotTime = (Math.random() * 2 + 1) + 's';
+                const rotDir = Math.random() > 0.5 ? 'normal' : 'reverse';
+                item.style.animation = `rotating-physics ${rotTime} linear infinite ${rotDir}`;
+
                 area.appendChild(item);
                 let y = 300; let vy = -15;
                 const m = setInterval(() => {
@@ -460,11 +478,13 @@
                     item.style.top = y + 'px';
                     if(y > 350) { clearInterval(m); item.remove(); }
                 }, 30);
+                
                 const hit = (e) => { 
                     e.preventDefault();
                     score++; 
                     document.getElementById('slice-score').innerText = score; 
                     item.innerText = '✨'; 
+                    item.style.animation = 'none'; 
                     clearInterval(m); 
                     setTimeout(()=>item.remove(), 100); 
                 };
@@ -473,39 +493,56 @@
             }, 800);
         }
 
-        /* CATCH GAME */
+        /* CATCH GAME (SWIPE) */
         function setupCatch() {
             const area = document.getElementById('catcher-area');
             const player = document.getElementById('player');
             let score = 0;
+
             const moveHandler = (e) => {
-                e.preventDefault();
+                if (e.cancelable) e.preventDefault();
                 const rect = area.getBoundingClientRect();
-                const x = e.touches ? e.touches[0].clientX : e.clientX;
-                let relX = ((x - rect.left) / rect.width) * 100;
-                player.style.left = Math.max(10, Math.min(90, relX)) + '%';
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                let percentX = ((clientX - rect.left) / rect.width) * 100;
+                player.style.left = Math.max(8, Math.min(92, percentX)) + '%';
             };
+
+            area.addEventListener('touchstart', moveHandler, {passive: false});
             area.addEventListener('touchmove', moveHandler, {passive: false});
             area.addEventListener('mousemove', moveHandler);
+
             const loop = setInterval(() => {
                 const h = document.createElement('div');
                 h.className = 'slice-item'; h.innerText = '💖';
+                h.style.animation = `rotating-physics ${Math.random() + 1}s linear infinite`;
                 h.style.left = (Math.random()*80 + 10) + '%';
                 h.style.top = '-50px';
                 area.appendChild(h);
+                
                 let y = -50;
                 const d = setInterval(() => {
                     y += 5; h.style.top = y + 'px';
                     const hr = h.getBoundingClientRect();
                     const pr = player.getBoundingClientRect();
                     if(hr.bottom > pr.top && hr.left < pr.right && hr.right > pr.left) {
-                        score += 10; document.getElementById('catch-score').innerText = score;
+                        score += 10; 
+                        document.getElementById('catch-score').innerText = score;
                         h.remove(); clearInterval(d);
-                        if(score >= 100) { clearInterval(loop); confetti(); setTimeout(()=>next('scr-reveal'), 1000); }
+                        if(score >= 100) { clearInterval(loop); next('scr-reveal'); }
                     }
                     if(y > 350) { h.remove(); clearInterval(d); }
                 }, 30);
             }, 1000);
+        }
+
+        /* FINALE (CONFETTI) */
+        function startConfettiLoop() {
+            const end = Date.now() + (100 * 1000); 
+            (function frame() {
+                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
+                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
         }
 
         function showHint() { alert("Hint: " + trivia[currentQ].h); }
