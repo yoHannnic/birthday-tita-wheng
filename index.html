@@ -53,7 +53,7 @@
             max-width: 450px;
             height: 90%; 
             max-height: 700px;
-            padding: 20px;
+            padding: 20px 20px 10px 20px; /* Reduced bottom padding for footer */
             border-radius: 20px;
             box-shadow: 10px 10px 0px rgba(0, 71, 171, 0.1);
             position: relative;
@@ -219,6 +219,17 @@
             pointer-events: none;
             transition: left 0.05s ease-out; 
         }
+
+        /* FOOTER STYLE */
+        .footer {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--ink-blue);
+            opacity: 0.7;
+            padding-top: 15px;
+            font-family: 'Short Stack', cursive;
+        }
+        .footer i { color: #ff4757; }
     </style>
 </head>
 <body>
@@ -305,6 +316,10 @@
                 <p style="text-align: right; margin-top: 15px; color: var(--ink-blue); font-weight: bold;">— Love,<br>Yosh and Yeyen</p>
             </div>
             <button class="btn" onclick="location.reload()" style="background: var(--accent-orange);">Play Again? 🔄</button>
+        </div>
+
+        <div class="footer">
+            made with <i class="ph-fill ph-heart"></i> by Yohann Nicholo Matibag
         </div>
     </div>
 
@@ -455,7 +470,7 @@
             }
         }
 
-        /* SLICE GAME (ROTATION PHYSICS) */
+        /* SLICE GAME */
         function setupSlice() {
             const area = document.getElementById('slice-area');
             let score = 0;
@@ -493,7 +508,7 @@
             }, 800);
         }
 
-        /* CATCH GAME (SWIPE) */
+        /* CATCH GAME */
         function setupCatch() {
             const area = document.getElementById('catcher-area');
             const player = document.getElementById('player');
